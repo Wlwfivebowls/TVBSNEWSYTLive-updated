@@ -4,20 +4,32 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-# Google Sheet 連結（CSV 匯出格式）
+# Google Sheet 的 CSV 連結
 sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxfkdraOYilXbXzLXhU/gviz/tq?tqx=out:csv"
 
 @st.cache_data(ttl=300)
 def load_data():
     df = pd.read_csv(sheet_url)
     df.columns = df.columns.astype(str)
-    # 前三欄應為頻道連結、頻道名稱、影片標題
+
+    # 取得欄位名稱（前3欄：連結、頻道名稱、影片標題）
     id_cols = df.columns[:3]
     value_cols = df.columns[3:]
+
+    # melt 成長格式
     df_melted = df.melt(id_vars=id_cols, value_vars=value_cols, var_name="時間", value_name="在線人數")
+
+    # 清洗時間與人數欄位
     df_melted["時間"] = pd.to_datetime(df_melted["時間"], errors="coerce")
+    df_melted["在線人數"] = pd.to_numeric(df_melted["在線人數"], errors="coerce")
     df_melted = df_melted.dropna(subset=["時間", "在線人數"])
-    df_melted = df_melted.rename(columns={df.columns[1]: "頻道名稱"})  # 第二欄視為頻道名稱
+
+    # 自動辨識頻道名稱欄位
+    name_col = [col for col in id_cols if "頻道" in col or "名稱" in col]
+    if not name_col:
+        raise ValueError("找不到頻道名稱欄位")
+    df_melted = df_melted.rename(columns={name_col[0]: "頻道名稱"})
+
     return df_melted
 
 st.title("📊 YouTube 直播頻道在線人數分析（雲端自動更新）")
@@ -25,7 +37,7 @@ st.title("📊 YouTube 直播頻道在線人數分析（雲端自動更新）")
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"資料載入失敗：{e}")
+    st.error(f"❌ 表格載入錯誤：{e}")
     st.stop()
 
 channels = df["頻道名稱"].unique().tolist()
@@ -43,7 +55,6 @@ end_date = st.sidebar.date_input("結束日期", min_value=min_date, max_value=m
 
 mask = (df["時間"].dt.date >= start_date) & (df["時間"].dt.date <= end_date)
 df_filtered = df[mask].copy()
-
 df_filtered["日期"] = df_filtered["時間"].dt.date
 df_filtered["小時"] = df_filtered["時間"].dt.hour
 
