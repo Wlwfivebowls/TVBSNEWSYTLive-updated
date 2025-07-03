@@ -4,36 +4,41 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-# Google Sheet 的 CSV 連結
+st.title("📊 YouTube 直播頻道在線人數分析（除錯強化版）")
+
 sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxfkdraOYilXbXzLXhU/gviz/tq?tqx=out:csv"
 
 @st.cache_data(ttl=300)
 def load_data():
-    df = pd.read_csv(sheet_url)
+    try:
+        df = pd.read_csv(sheet_url)
+        if df.empty:
+            st.error("❌ 資料讀取結果為空！請確認 Google Sheet 是否有開放權限且格式正確。")
+            return None
 
-    # 重命名前3欄
-    df.columns.values[0] = "頻道連結"
-    df.columns.values[1] = "頻道名稱"
-    df.columns.values[2] = "影片標題"
+        st.success("✅ 成功讀取資料，顯示前 3 列供確認：")
+        st.dataframe(df.head(3))
 
-    # melt 長格式轉換
-    id_cols = ["頻道連結", "頻道名稱", "影片標題"]
-    value_cols = df.columns[3:]
-    df_melted = df.melt(id_vars=id_cols, value_vars=value_cols, var_name="時間", value_name="在線人數")
+        df.columns.values[0] = "頻道連結"
+        df.columns.values[1] = "頻道名稱"
+        df.columns.values[2] = "影片標題"
 
-    # 整理時間與數值
-    df_melted["時間"] = pd.to_datetime(df_melted["時間"], errors="coerce")
-    df_melted["在線人數"] = pd.to_numeric(df_melted["在線人數"], errors="coerce")
-    df_melted = df_melted.dropna(subset=["時間", "在線人數"])
+        id_cols = ["頻道連結", "頻道名稱", "影片標題"]
+        value_cols = df.columns[3:]
 
-    return df_melted
+        df_melted = df.melt(id_vars=id_cols, value_vars=value_cols, var_name="時間", value_name="在線人數")
 
-st.title("📊 YouTube 直播頻道在線人數分析（雲端自動更新）")
+        df_melted["時間"] = pd.to_datetime(df_melted["時間"], errors="coerce")
+        df_melted["在線人數"] = pd.to_numeric(df_melted["在線人數"], errors="coerce")
+        df_melted = df_melted.dropna(subset=["時間", "在線人數"])
 
-try:
-    df = load_data()
-except Exception as e:
-    st.error(f"❌ 表格載入錯誤：{e}")
+        return df_melted
+    except Exception as e:
+        st.error(f"❌ 錯誤：{e}")
+        return None
+
+df = load_data()
+if df is None:
     st.stop()
 
 channels = df["頻道名稱"].unique().tolist()
