@@ -10,14 +10,15 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxf
 @st.cache_data(ttl=300)
 def load_data():
     df = pd.read_csv(sheet_url)
-    df.columns = [c.strip() for c in df.columns]
-    if '統計時間' not in df.columns or '頻道名稱' not in df.columns or '在線人數' not in df.columns:
-        st.error("❌ 表格欄位缺少『統計時間』『頻道名稱』『在線人數』，請確認格式正確")
-        st.stop()
-    df['統計時間'] = pd.to_datetime(df['統計時間'], errors='coerce')
-    df = df.dropna(subset=['統計時間', '頻道名稱', '在線人數'])
-    df = df.rename(columns={'統計時間': '時間'})
-    return df
+    df.columns = df.columns.astype(str)
+    # 前三欄應為頻道連結、頻道名稱、影片標題
+    id_cols = df.columns[:3]
+    value_cols = df.columns[3:]
+    df_melted = df.melt(id_vars=id_cols, value_vars=value_cols, var_name="時間", value_name="在線人數")
+    df_melted["時間"] = pd.to_datetime(df_melted["時間"], errors="coerce")
+    df_melted = df_melted.dropna(subset=["時間", "在線人數"])
+    df_melted = df_melted.rename(columns={df.columns[1]: "頻道名稱"})  # 第二欄視為頻道名稱
+    return df_melted
 
 st.title("📊 YouTube 直播頻道在線人數分析（雲端自動更新）")
 
