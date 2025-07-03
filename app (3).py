@@ -4,20 +4,18 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-st.title("📊 YouTube 直播頻道在線人數分析（除錯強化版）")
+st.title("📊 YouTube 直播頻道在線人數分析（工作表1 專用）")
 
-sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxfkdraOYilXbXzLXhU/gviz/tq?tqx=out:csv"
+# 指定工作表1，跳過前1行說明（實際從第2行開始是頻道資料）
+sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxfkdraOYilXbXzLXhU/gviz/tq?tqx=out:csv&sheet=工作表1"
 
 @st.cache_data(ttl=300)
 def load_data():
     try:
-        df = pd.read_csv(sheet_url)
-        if df.empty:
-            st.error("❌ 資料讀取結果為空！請確認 Google Sheet 是否有開放權限且格式正確。")
-            return None
-
-        st.success("✅ 成功讀取資料，顯示前 3 列供確認：")
-        st.dataframe(df.head(3))
+        raw = pd.read_csv(sheet_url, skiprows=1)
+        raw = raw.dropna(how="all")  # 去除全空白列
+        raw.columns = raw.iloc[0]  # 第2行實為標題
+        df = raw.drop(raw.index[0])  # 去除標題列
 
         df.columns.values[0] = "頻道連結"
         df.columns.values[1] = "頻道名稱"
@@ -27,7 +25,6 @@ def load_data():
         value_cols = df.columns[3:]
 
         df_melted = df.melt(id_vars=id_cols, value_vars=value_cols, var_name="時間", value_name="在線人數")
-
         df_melted["時間"] = pd.to_datetime(df_melted["時間"], errors="coerce")
         df_melted["在線人數"] = pd.to_numeric(df_melted["在線人數"], errors="coerce")
         df_melted = df_melted.dropna(subset=["時間", "在線人數"])
@@ -38,7 +35,7 @@ def load_data():
         return None
 
 df = load_data()
-if df is None:
+if df is None or df.empty:
     st.stop()
 
 channels = df["頻道名稱"].unique().tolist()
