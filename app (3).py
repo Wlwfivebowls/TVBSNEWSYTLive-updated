@@ -10,7 +10,9 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxf
 @st.cache_data(ttl=300)
 def load_data():
     df = pd.read_csv(sheet_url)
-    df.columns = df.columns.astype(str)
+
+    # 清洗欄位名稱：去除前後空白與特殊符號
+    df.columns = df.columns.str.strip().str.replace("　", "").str.replace("\n", "").str.replace("　", "")
 
     # 取得欄位名稱（前3欄：連結、頻道名稱、影片標題）
     id_cols = df.columns[:3]
