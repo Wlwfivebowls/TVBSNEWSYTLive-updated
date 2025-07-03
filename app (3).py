@@ -11,26 +11,20 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1DIz9Cd5iSr1ssNkyYgvBshwKcxf
 def load_data():
     df = pd.read_csv(sheet_url)
 
-    # 清洗欄位名稱：去除前後空白與特殊符號
-    df.columns = df.columns.str.strip().str.replace("　", "").str.replace("\n", "").str.replace("　", "")
+    # 重命名前3欄
+    df.columns.values[0] = "頻道連結"
+    df.columns.values[1] = "頻道名稱"
+    df.columns.values[2] = "影片標題"
 
-    # 取得欄位名稱（前3欄：連結、頻道名稱、影片標題）
-    id_cols = df.columns[:3]
+    # melt 長格式轉換
+    id_cols = ["頻道連結", "頻道名稱", "影片標題"]
     value_cols = df.columns[3:]
-
-    # melt 成長格式
     df_melted = df.melt(id_vars=id_cols, value_vars=value_cols, var_name="時間", value_name="在線人數")
 
-    # 清洗時間與人數欄位
+    # 整理時間與數值
     df_melted["時間"] = pd.to_datetime(df_melted["時間"], errors="coerce")
     df_melted["在線人數"] = pd.to_numeric(df_melted["在線人數"], errors="coerce")
     df_melted = df_melted.dropna(subset=["時間", "在線人數"])
-
-    # 自動辨識頻道名稱欄位
-    name_col = [col for col in id_cols if "頻道" in col or "名稱" in col]
-    if not name_col:
-        raise ValueError("找不到頻道名稱欄位")
-    df_melted = df_melted.rename(columns={name_col[0]: "頻道名稱"})
 
     return df_melted
 
